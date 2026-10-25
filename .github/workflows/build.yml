@@ -1,0 +1,45 @@
+name: Build iOS 15 WebDriverAgent
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: Checkout WebDriverAgent v4.10.20 (iOS 15 Destekli Kararlı Sürüm)
+        uses: actions/checkout@v4
+        with:
+          repository: appium/WebDriverAgent
+          ref: v4.10.20
+          fetch-depth: 1
+
+      - name: Select Xcode 14 (iOS 15 Uyumlu)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '14.3.1'
+
+      - name: Build WebDriverAgentRunner for Real iPhone
+        run: |
+          xcodebuild build-for-testing \
+            -project WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          APP_DIR=$(find ./build/Build/Products -name "WebDriverAgentRunner-Runner.app" | head -n 1)
+          echo "Bulunan uygulama: $APP_DIR"
+          cp -R "$APP_DIR" Payload/
+          zip -r WebDriverAgentRunner_iOS15.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgentRunner_iOS15
+          path: WebDriverAgentRunner_iOS15.ipa
